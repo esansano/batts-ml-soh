@@ -45,14 +45,6 @@ def run_ml_experiment(exp_config):
 
 
 if __name__ == '__main__':
-    # run_dl_experiment(cnn_full_rmse)
-    # run_dl_experiment(cnn_full_mae)
-    # run_dl_experiment(cnn_part_rmse)
-    # run_dl_experiment(cnn_part_mae)
-    # run_dl_experiment(fcn_full_rmse)
-    # run_dl_experiment(fcn_full_mae)
-    # run_dl_experiment(fcn_part_rmse)
-    # run_dl_experiment(fcn_part_mae)
 
     run_ml_experiment(knn_full)
     run_ml_experiment(knn_part)
@@ -62,3 +54,12 @@ if __name__ == '__main__':
     run_ml_experiment(svr_part)
     run_ml_experiment(xgb_full)
     run_ml_experiment(xgb_part)
+
+    run_dl_experiment(cnn_full_rmse)
+    run_dl_experiment(cnn_full_mae)
+    run_dl_experiment(cnn_part_rmse)
+    run_dl_experiment(cnn_part_mae)
+    run_dl_experiment(fcn_full_rmse)
+    run_dl_experiment(fcn_full_mae)
+    run_dl_experiment(fcn_part_rmse)
+    run_dl_experiment(fcn_part_mae)
