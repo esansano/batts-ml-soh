@@ -76,7 +76,9 @@ def plot_part_results():
                           color='black', fontsize=10)
 
     ax[0, 0].set_ylabel('RMSE')
+    ax[0, 0].set_ylim(0.0, 0.115)
     ax[1, 0].set_ylabel('MAE')
+    ax[1, 0].set_ylim(0.0, 0.115)
     ax[1, 0].set_xlabel('length')
     ax[1, 1].set_xlabel('length')
 
@@ -94,14 +96,14 @@ def plot_part_results():
 
 
 def plot_full_results():
-    df_knn = pd.read_csv(os.path.join('.', 'results', 'KNN_part.csv')).drop(['length'], axis=1)
-    df_rf = pd.read_csv(os.path.join('.', 'results', 'RF_part.csv')).drop(['length'], axis=1)
-    df_svr = pd.read_csv(os.path.join('.', 'results', 'SVR_part.csv')).drop(['length'], axis=1)
-    df_xgboost = pd.read_csv(os.path.join('.', 'results', 'XGB_part.csv')).drop(['length'], axis=1)
-    df_cnn_mae = pd.read_csv(os.path.join('.', 'results', 'CNN_part_MAE.csv')).drop(['length'], axis=1)
-    df_cnn_rmse = pd.read_csv(os.path.join('.', 'results', 'CNN_part_RMSE.csv')).drop(['length'], axis=1)
-    df_fcn_mae = pd.read_csv(os.path.join('.', 'results', 'FCN_part_MAE.csv')).drop(['length'], axis=1)
-    df_fcn_rmse = pd.read_csv(os.path.join('.', 'results', 'FCN_part_RMSE.csv')).drop(['length'], axis=1)
+    df_knn = pd.read_csv(os.path.join('.', 'results', 'KNN_full.csv')).drop(['length'], axis=1)
+    df_rf = pd.read_csv(os.path.join('.', 'results', 'RF_full.csv')).drop(['length'], axis=1)
+    df_svr = pd.read_csv(os.path.join('.', 'results', 'SVR_full.csv')).drop(['length'], axis=1)
+    df_xgboost = pd.read_csv(os.path.join('.', 'results', 'XGB_full.csv')).drop(['length'], axis=1)
+    df_cnn_mae = pd.read_csv(os.path.join('.', 'results', 'CNN_full_MAE.csv')).drop(['length'], axis=1)
+    df_cnn_rmse = pd.read_csv(os.path.join('.', 'results', 'CNN_full_RMSE.csv')).drop(['length'], axis=1)
+    df_fcn_mae = pd.read_csv(os.path.join('.', 'results', 'FCN_full_MAE.csv')).drop(['length'], axis=1)
+    df_fcn_rmse = pd.read_csv(os.path.join('.', 'results', 'FCN_full_RMSE.csv')).drop(['length'], axis=1)
 
     df_knn['algorithm'] = 'KNN'
     df_rf['algorithm'] = 'RF'
@@ -125,7 +127,7 @@ def plot_full_results():
     data_rmse = np.zeros((4, 6))
     df_mae = pd.concat([df_knn, df_rf, df_svr, df_xgboost, df_cnn_mae, df_fcn_mae])
     df_rmse = pd.concat([df_knn, df_rf, df_svr, df_xgboost, df_cnn_rmse, df_fcn_rmse])
-    algs = ['SVR', 'KNN', 'RF', 'XGB', 'FCNN', 'CNN']
+    algs = ['SVR', 'KNN', 'RF', 'XGB', 'FCN', 'CNN']
 
     for i, dataset in enumerate([5, 10, 20, 50]):
         df_mae_ = df_mae[(df_mae['dataset'] == dataset)]
@@ -157,7 +159,9 @@ def plot_full_results():
                    color='black', fontsize=10)
 
     ax[0].set_ylabel('RMSE')
+    ax[0].set_ylim(0.0, 0.05)
     ax[1].set_ylabel('MAE')
+    ax[1].set_ylim(0.0, 0.05)
     ax[0].set_xlabel('dataset')
     ax[1].set_xlabel('dataset')
     ax[0].set_xticks(x, ['5mV', '10mV', '20mV', '50mV'])
@@ -217,7 +221,11 @@ def plot_predictions(dataset, length, model, loss_criterion=None):
 
 
 if __name__ == '__main__':
-    plot_part_results()
+    # plot_part_results()
     # plot_full_results()
-    # plot_predictions(dataset=50, length=20, model='CNN', loss_criterion='MAE')
+    plot_predictions(dataset=20, length=100, model='CNN', loss_criterion='MAE')
+    plot_predictions(dataset=20, length=20, model='CNN', loss_criterion='MAE')
+    # plot_predictions(dataset=50, length=100, model='SVR')
+    # plot_predictions(dataset=50, length=100, model='KNN')
+    # plot_predictions(dataset=50, length=100, model='RF')
     # plot_predictions(dataset=50, length=100, model='XGB')
