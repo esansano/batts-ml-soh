@@ -1,79 +1,69 @@
 import os
+import itertools
 import numpy as np
 import pandas as pd
 from loess.loess_1d import loess_1d
 from matplotlib import pyplot as plt
 
 
-def plot_part_results():
-    df_knn = pd.read_csv(os.path.join('.', 'results', 'KNN_part.csv'))
-    df_rf = pd.read_csv(os.path.join('.', 'results', 'RF_part.csv'))
-    df_svr = pd.read_csv(os.path.join('.', 'results', 'SVR_part.csv'))
-    df_xgboost = pd.read_csv(os.path.join('.', 'results', 'XGB_part.csv'))
-    df_cnn_mae = pd.read_csv(os.path.join('.', 'results', 'CNN_part_MAE.csv'))
-    df_cnn_rmse = pd.read_csv(os.path.join('.', 'results', 'CNN_part_RMSE.csv'))
-    df_fcn_mae = pd.read_csv(os.path.join('.', 'results', 'FCN_part_MAE.csv'))
-    df_fcn_rmse = pd.read_csv(os.path.join('.', 'results', 'FCN_part_RMSE.csv'))
-
-    df_knn['algorithm'] = 'KNN'
-    df_rf['algorithm'] = 'RF'
-    df_svr['algorithm'] = 'SVR'
-    df_cnn_mae['algorithm'] = 'CNN'
-    df_cnn_rmse['algorithm'] = 'CNN'
-    df_fcn_mae['algorithm'] = 'FCN'
-    df_fcn_rmse['algorithm'] = 'FCN'
-    df_xgboost['algorithm'] = 'XGB'
-
-    df_svr['algorithm_order'] = 1
-    df_knn['algorithm_order'] = 2
-    df_rf['algorithm_order'] = 3
-    df_xgboost['algorithm_order'] = 4
-    df_fcn_mae['algorithm_order'] = 5
-    df_fcn_rmse['algorithm_order'] = 5
-    df_cnn_mae['algorithm_order'] = 6
-    df_cnn_rmse['algorithm_order'] = 6
-
-    data_mae = np.zeros((2, 5, 6))
-    data_rmse = np.zeros((2, 5, 6))
-    df_mae = pd.concat([df_knn, df_rf, df_svr, df_cnn_mae, df_fcn_mae, df_xgboost])
-    df_rmse = pd.concat([df_knn, df_rf, df_svr, df_cnn_rmse, df_fcn_rmse, df_xgboost])
+def plot_part_results(save=False):
+    server = 'init01'
     algs = ['SVR', 'KNN', 'RF', 'XGB', 'FCN', 'CNN']
-    lengths = [20, 30, 40, 50, 80]
-    datasets_data = [(20, lengths), (50, lengths)]
+    losses = ['MAE', 'RMSE']
+    cats = ['part']
+    dfs = []
 
-    for i, dataset in enumerate(datasets_data):
-        dataset_, lengths_ = dataset
-        for j, length in enumerate(lengths_):
-            df_mae_ = df_mae[(df_mae['dataset'] == dataset_) & (df_mae['length'] == length)]
-            df_rmse_ = df_rmse[(df_rmse['dataset'] == dataset_) & (df_rmse['length'] == length)]
-            df_mae_ = df_mae_.sort_values(by='algorithm_order')
-            df_rmse_ = df_rmse_.sort_values(by='algorithm_order')
-            data_mae[i, j, :] = df_mae_['mae'].values
-            data_rmse[i, j, :] = df_rmse_['rmse'].values
+    prod = itertools.product(cats, algs, losses)
+    for cat, alg, loss in prod:
+        file_name = os.path.join('.', 'results', server, f'{alg}_{cat}.csv')
+        if os.path.exists(file_name):
+            df = pd.read_csv(file_name)
+            df['algorithm'] = alg
+            df['algorithm_order'] = algs.index(alg)
+        else:
+            file_name = os.path.join('.', 'results', server, f'{alg}_{cat}_{loss}.csv')
+            if os.path.exists(file_name):
+                df = pd.read_csv(file_name)
+                df['algorithm'] = alg
+                df['algorithm_order'] = algs.index(alg)
+            else:
+                continue
+        dfs.append(df)
+
+    df = pd.concat(dfs)
+    df = df.groupby(by=['length', 'dataset', 'algorithm']).min().reset_index().sort_values(by=['algorithm_order',
+                                                                                               'dataset', 'length'])
+
+    lengths = sorted(list(pd.unique(df['length'])))
+    datasets_data = [(20, lengths), (50, lengths)]
+    data = df.drop(['algorithm'], axis=1).values
 
     width = 0.15
 
-    fig, ax = plt.subplots(nrows=2, ncols=2, sharex=False, sharey=True, figsize=(12, 8))
-    # sets color map
+    fig, ax = plt.subplots(nrows=2, ncols=2, sharex=False, sharey=True, figsize=(15, 10))
     cmap = plt.get_cmap('tab20c')
-    # cmap = plt.get_cmap('tab10')
-    for r in range(len(datasets_data)):
+    for r, (dataset, ds_lengths) in enumerate(datasets_data):
         x = np.arange(5)
         for i in range(len(algs)):
-            ax[0, r].bar(x - width * 2.5 + i * width, data_rmse[r, :, i], width, label=f'{algs[i]}',
-                         color=cmap(i / len(algs)))
-            ax[1, r].bar(x - width * 2.5 + i * width, data_mae[r, :, i], width, label=f'{algs[i]}',
-                         color=cmap(i / len(algs)))
+            rmses = data[(data[:, 4] == i) & (data[:, 1] == dataset), 2]
+            maes = data[(data[:, 4] == i) & (data[:, 1] == dataset), 3]
+            ax[0, r].bar(x - width * 2.5 + i * width, rmses, width, label=f'{algs[i]}', color=cmap(i / len(algs)))
+            ax[1, r].bar(x - width * 2.5 + i * width, maes, width, label=f'{algs[i]}', color=cmap(i / len(algs)))
 
-        ax[0, r].vlines(x - width * 2.5 + 5 * width, data_rmse[r, :, 5], data_rmse[r, :, 5] + 0.03,
-                        color='black', alpha=0.5, linestyle='--')
-        ax[1, r].vlines(x - width * 2.5 + 5 * width, data_mae[r, :, 5], data_mae[r, :, 5] + 0.03,
-                        color='black', alpha=0.5, linestyle='--')
-        for j in range(5):
-            ax[0, r].text(x=x[j] + width * 0.5, y=data_rmse[r, j, 5] + 0.032, s=f'{data_rmse[r, j, 5]:0.4f}',
-                          color='black', fontsize=10)
-            ax[1, r].text(x=x[j] + width * 0.5, y=data_mae[r, j, 5] + 0.032, s=f'{data_mae[r, j, 5]:0.4f}',
-                          color='black', fontsize=10)
+        for j, length in enumerate(ds_lengths):
+            data_ds = data[(data[:, 1] == dataset) & (data[:, 0] == length)]
+            rmse_idx = np.argmin(data_ds[:, 2])
+            mae_idx = np.argmin(data_ds[:, 3])
+            rmse = data_ds[rmse_idx, 2]
+            mae = data_ds[mae_idx, 3]
+            xj = x[j] - width * 2.5 + rmse_idx * width
+            ax[0, r].vlines(xj, rmse, rmse + 0.03, color='black', alpha=0.5, linestyle='--')
+            xj = x[j] - width * 2.5 + mae_idx * width
+            ax[1, r].vlines(xj, mae, mae + 0.03, color='black', alpha=0.5, linestyle='--')
+            xj = x[j] - width * (4 - rmse_idx)
+            ax[0, r].text(x=xj, y=rmse + 0.032, s=f'{rmse:0.4f}', color='black', fontsize=10)
+            xj = x[j] - width * (4 - mae_idx)
+            ax[1, r].text(x=xj, y=mae + 0.032, s=f'{mae:0.4f}', color='black', fontsize=10)
 
     ax[0, 0].set_ylabel('RMSE')
     ax[0, 0].set_ylim(0.0, 0.115)
@@ -93,70 +83,62 @@ def plot_part_results():
     ax[0, 1].legend()
     fig.tight_layout()
     plt.show()
+    if save:
+        fig.savefig(os.path.join('.', 'plots', f'{server}_part_results.png'))
 
 
-def plot_full_results():
-    df_knn = pd.read_csv(os.path.join('.', 'results', 'KNN_full.csv')).drop(['length'], axis=1)
-    df_rf = pd.read_csv(os.path.join('.', 'results', 'RF_full.csv')).drop(['length'], axis=1)
-    df_svr = pd.read_csv(os.path.join('.', 'results', 'SVR_full.csv')).drop(['length'], axis=1)
-    df_xgboost = pd.read_csv(os.path.join('.', 'results', 'XGB_full.csv')).drop(['length'], axis=1)
-    df_cnn_mae = pd.read_csv(os.path.join('.', 'results', 'CNN_full_MAE.csv')).drop(['length'], axis=1)
-    df_cnn_rmse = pd.read_csv(os.path.join('.', 'results', 'CNN_full_RMSE.csv')).drop(['length'], axis=1)
-    df_fcn_mae = pd.read_csv(os.path.join('.', 'results', 'FCN_full_MAE.csv')).drop(['length'], axis=1)
-    df_fcn_rmse = pd.read_csv(os.path.join('.', 'results', 'FCN_full_RMSE.csv')).drop(['length'], axis=1)
-
-    df_knn['algorithm'] = 'KNN'
-    df_rf['algorithm'] = 'RF'
-    df_svr['algorithm'] = 'SVR'
-    df_xgboost['algorithm'] = 'XGB'
-    df_cnn_mae['algorithm'] = 'CNN'
-    df_cnn_rmse['algorithm'] = 'CNN'
-    df_fcn_mae['algorithm'] = 'FCN'
-    df_fcn_rmse['algorithm'] = 'FCN'
-
-    df_svr['algorithm_order'] = 1
-    df_knn['algorithm_order'] = 2
-    df_rf['algorithm_order'] = 3
-    df_xgboost['algorithm_order'] = 4
-    df_fcn_mae['algorithm_order'] = 5
-    df_fcn_rmse['algorithm_order'] = 5
-    df_cnn_mae['algorithm_order'] = 6
-    df_cnn_rmse['algorithm_order'] = 6
-
-    data_mae = np.zeros((4, 6))
-    data_rmse = np.zeros((4, 6))
-    df_mae = pd.concat([df_knn, df_rf, df_svr, df_xgboost, df_cnn_mae, df_fcn_mae])
-    df_rmse = pd.concat([df_knn, df_rf, df_svr, df_xgboost, df_cnn_rmse, df_fcn_rmse])
+def plot_full_results(save=False):
+    server = 'init01'
     algs = ['SVR', 'KNN', 'RF', 'XGB', 'FCN', 'CNN']
+    losses = ['MAE', 'RMSE']
+    cats = ['full']
+    dfs = []
 
-    for i, dataset in enumerate([5, 10, 20, 50]):
-        df_mae_ = df_mae[(df_mae['dataset'] == dataset)]
-        df_rmse_ = df_rmse[(df_rmse['dataset'] == dataset)]
-        df_mae_ = df_mae_.sort_values(by='algorithm_order')
-        df_rmse_ = df_rmse_.sort_values(by='algorithm_order')
-        data_mae[i, :] = df_mae_['mae'].values
-        data_rmse[i, :] = df_rmse_['rmse'].values
+    prod = itertools.product(cats, algs, losses)
+    for cat, alg, loss in prod:
+        file_name = os.path.join('.', 'results', server, f'{alg}_{cat}.csv')
+        if os.path.exists(file_name):
+            df = pd.read_csv(file_name)
+            df['algorithm'] = alg
+            df['algorithm_order'] = algs.index(alg)
+        else:
+            file_name = os.path.join('.', 'results', server, f'{alg}_{cat}_{loss}.csv')
+            if os.path.exists(file_name):
+                df = pd.read_csv(file_name)
+                df['algorithm'] = alg
+                df['algorithm_order'] = algs.index(alg)
+            else:
+                continue
+        dfs.append(df)
 
-    width = 0.14
+    df = pd.concat(dfs)
+    df = df.groupby(by=['length', 'dataset', 'algorithm']).min().reset_index().sort_values(by=['algorithm_order',
+                                                                                               'dataset', 'length'])
+    data = df.drop(['algorithm', 'length'], axis=1).values
+    datasets = sorted(list(pd.unique(df['dataset'])))
 
-    fig, ax = plt.subplots(nrows=2, ncols=1, sharex=False, sharey=False, figsize=(8, 8))
+    width = 0.15
+
+    fig, ax = plt.subplots(nrows=2, ncols=1, sharex=False, sharey=False, figsize=(10, 10))
     cmap = plt.get_cmap('tab20c')
     x = np.arange(4)
     for i in range(len(algs)):
-        ax[0].bar(x - width * 2.5 + i * width, data_rmse[:, i], width, label=f'{algs[i]}',
-                     color=cmap(i / len(algs)))
-        ax[1].bar(x - width * 2.5 + i * width, data_mae[:, i], width, label=f'{algs[i]}',
-                     color=cmap(i / len(algs)))
+        rmses = data[(data[:, 3] == i), 1]
+        maes = data[(data[:, 3] == i), 2]
+        ax[0].bar(x - width * 2.5 + i * width, rmses, width, label=f'{algs[i]}', color=cmap(i / len(algs)))
+        ax[1].bar(x - width * 2.5 + i * width, maes, width, label=f'{algs[i]}', color=cmap(i / len(algs)))
 
-    ax[0].vlines(x - width * 2.5 + 5 * width, data_rmse[:, 5], data_rmse[:, 5] + 0.015,
-                 color='black', alpha=0.5, linestyle='--')
-    ax[1].vlines(x - width * 2.5 + 5 * width, data_mae[:, 5], data_mae[:, 5] + 0.015,
-                 color='black', alpha=0.5, linestyle='--')
-    for j in range(4):
-        ax[0].text(x=x[j] + width * 1.25, y=data_rmse[j, 5] + 0.016, s=f'{data_rmse[j, 5]:0.4f}',
-                   color='black', fontsize=10)
-        ax[1].text(x=x[j] + width * 1.25, y=data_mae[j, 5] + 0.016, s=f'{data_mae[j, 5]:0.4f}',
-                   color='black', fontsize=10)
+    for j, dataset in enumerate(datasets):
+        data_ds = data[(data[:, 0] == dataset)]
+        rmse_idx = np.argmin(data_ds[:, 1])
+        mae_idx = np.argmin(data_ds[:, 2])
+        rmse = data_ds[rmse_idx, 1]
+        mae = data_ds[mae_idx, 2]
+
+        ax[0].vlines(x[j] - width * 2.5 + rmse_idx * width, rmse, rmse + 0.015, color='black', alpha=0.5, linestyle='--')
+        ax[1].vlines(x[j] - width * 2.5 + mae_idx * width, mae, mae + 0.015, color='black', alpha=0.5, linestyle='--')
+        ax[0].text(x=x[j] - (3.5 - rmse_idx) * width, y=rmse + 0.016, s=f'{rmse:0.4f}', color='black', fontsize=10)
+        ax[1].text(x=x[j] - (3.5 - mae_idx) * width, y=mae + 0.016, s=f'{mae:0.4f}', color='black', fontsize=10)
 
     ax[0].set_ylabel('RMSE')
     ax[0].set_ylim(0.0, 0.05)
@@ -169,15 +151,19 @@ def plot_full_results():
     ax[0].legend()
     fig.tight_layout()
     plt.show()
+    if save:
+        fig.savefig(os.path.join('.', 'plots', f'{server}_full_results.png'))
 
 
-def plot_predictions(dataset, length, model, loss_criterion=None):
+def plot_predictions(dataset, length, model, loss_criterion=None, save=False):
+    server = 'giant01'
+    path = os.path.join('.', 'snapshots', server)
     df = []
     for fold in range(1, 6):
         if loss_criterion is not None:
-            filename = f'./snapshots/{model}_d{dataset}_l{length}_{loss_criterion}_{fold}.csv'
+            filename = os.path.join(path, f'{model}_d{dataset}_l{length}_{loss_criterion}_{fold}.csv')
         else:
-            filename = f'./snapshots/{model}_d{dataset}_l{length}_{fold}.csv'
+            filename = os.path.join(path, f'{model}_d{dataset}_l{length}_{fold}.csv')
         if not os.path.isfile(filename):
             continue
         df.append(pd.read_csv(filename, header=None, names=['y', 'y_hat']).sort_values(by='y', ascending=False))
@@ -205,7 +191,7 @@ def plot_predictions(dataset, length, model, loss_criterion=None):
     _, y_sds_loess_lb, _ = loess_1d(x, (y_avg_loess - preds['y_hat_std']).to_numpy(), xnew=None, degree=degree,
                                     frac=0.5, npoints=None, rotate=False, sigy=None)
 
-    fig = plt.figure(figsize=(8, 8))
+    fig = plt.figure(figsize=(10, 10))
     plt.scatter(range(preds.shape[0]), preds['y'], s=5, c='b', alpha=0.9)
     plt.scatter(range(preds.shape[0]), preds['y_hat'], s=5, c='r', alpha=0.3)
     plt.fill_between(range(preds.shape[0]), y_sds_loess_ub, y_sds_loess_lb, color='k', alpha=0.2,
@@ -216,15 +202,17 @@ def plot_predictions(dataset, length, model, loss_criterion=None):
     plt.ylabel('Retained capacity (per unit)')
     plt.xlabel('Cycle example (number)')
     plt.suptitle(f'{model} - dataset: {dataset}mV, length: {length}%, MAE: {mae:.6f}')
-    plt.tight_layout()
+    fig.tight_layout()
     plt.show()
+    if save:
+        fig.savefig(os.path.join('.', 'plots', f'{server}_predictions_d{dataset}_l{length}.png'))
 
 
 if __name__ == '__main__':
-    # plot_part_results()
-    # plot_full_results()
-    plot_predictions(dataset=20, length=100, model='CNN', loss_criterion='MAE')
-    plot_predictions(dataset=20, length=20, model='CNN', loss_criterion='MAE')
+    plot_part_results(save=True)
+    plot_full_results(save=True)
+    plot_predictions(dataset=50, length=100, model='CNN', loss_criterion='RMSE', save=True)
+    plot_predictions(dataset=50, length=20, model='CNN', loss_criterion='RMSE', save=True)
     # plot_predictions(dataset=50, length=100, model='SVR')
     # plot_predictions(dataset=50, length=100, model='KNN')
     # plot_predictions(dataset=50, length=100, model='RF')
