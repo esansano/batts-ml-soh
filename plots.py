@@ -7,7 +7,6 @@ from matplotlib import pyplot as plt
 
 
 def plot_part_results(save=False):
-    server = 'init01'
     algs = ['SVR', 'KNN', 'RF', 'XGB', 'FCN', 'CNN']
     losses = ['MAE', 'RMSE']
     cats = ['part']
@@ -15,13 +14,13 @@ def plot_part_results(save=False):
 
     prod = itertools.product(cats, algs, losses)
     for cat, alg, loss in prod:
-        file_name = os.path.join('.', 'results', server, f'{alg}_{cat}.csv')
+        file_name = os.path.join('.', 'results', f'{alg}_{cat}.csv')
         if os.path.exists(file_name):
             df = pd.read_csv(file_name)
             df['algorithm'] = alg
             df['algorithm_order'] = algs.index(alg)
         else:
-            file_name = os.path.join('.', 'results', server, f'{alg}_{cat}_{loss}.csv')
+            file_name = os.path.join('.', 'results', f'{alg}_{cat}_{loss}.csv')
             if os.path.exists(file_name):
                 df = pd.read_csv(file_name)
                 df['algorithm'] = alg
@@ -84,11 +83,10 @@ def plot_part_results(save=False):
     fig.tight_layout()
     plt.show()
     if save:
-        fig.savefig(os.path.join('.', 'plots', f'{server}_part_results.png'))
+        fig.savefig(os.path.join('.', 'plots', 'part_results.png'))
 
 
 def plot_full_results(save=False):
-    server = 'init01'
     algs = ['SVR', 'KNN', 'RF', 'XGB', 'FCN', 'CNN']
     losses = ['MAE', 'RMSE']
     cats = ['full']
@@ -96,13 +94,13 @@ def plot_full_results(save=False):
 
     prod = itertools.product(cats, algs, losses)
     for cat, alg, loss in prod:
-        file_name = os.path.join('.', 'results', server, f'{alg}_{cat}.csv')
+        file_name = os.path.join('.', 'results', f'{alg}_{cat}.csv')
         if os.path.exists(file_name):
             df = pd.read_csv(file_name)
             df['algorithm'] = alg
             df['algorithm_order'] = algs.index(alg)
         else:
-            file_name = os.path.join('.', 'results', server, f'{alg}_{cat}_{loss}.csv')
+            file_name = os.path.join('.', 'results', f'{alg}_{cat}_{loss}.csv')
             if os.path.exists(file_name):
                 df = pd.read_csv(file_name)
                 df['algorithm'] = alg
@@ -152,12 +150,11 @@ def plot_full_results(save=False):
     fig.tight_layout()
     plt.show()
     if save:
-        fig.savefig(os.path.join('.', 'plots', f'{server}_full_results.png'))
+        fig.savefig(os.path.join('.', 'plots', 'full_results.png'))
 
 
-def plot_predictions(dataset, length, model, loss_criterion=None, save=False):
-    server = 'giant01'
-    path = os.path.join('.', 'snapshots', server)
+def plot_predictions(dataset, length, model, loss_criterion=None, loess_fit=True, save=False):
+    path = os.path.join('.', 'snapshots')
     df = []
     for fold in range(1, 6):
         if loss_criterion is not None:
@@ -194,9 +191,14 @@ def plot_predictions(dataset, length, model, loss_criterion=None, save=False):
     fig = plt.figure(figsize=(10, 10))
     plt.scatter(range(preds.shape[0]), preds['y'], s=5, c='b', alpha=0.9)
     plt.scatter(range(preds.shape[0]), preds['y_hat'], s=5, c='r', alpha=0.3)
-    plt.fill_between(range(preds.shape[0]), y_sds_loess_ub, y_sds_loess_lb, color='k', alpha=0.2,
-                     linewidth=0)
-    plt.plot(range(preds.shape[0]), y_avg_loess, '-', color='red', alpha=0.5)
+    if loess_fit:
+        plt.fill_between(range(preds.shape[0]), y_sds_loess_ub, y_sds_loess_lb, color='k', alpha=0.2,
+                         linewidth=0)
+        plt.plot(range(preds.shape[0]), y_avg_loess, '-', color='red', alpha=0.5)
+    else:
+        plt.fill_between(range(preds.shape[0]), preds['y_hat_std+'], preds['y_hat_std-'], color='k', alpha=0.2,
+                         linewidth=0)
+
     plt.xlim(-1, preds.shape[0] + 1)
     plt.ylim(-0.05, 1.05)
     plt.ylabel('Retained capacity (per unit)')
@@ -205,15 +207,20 @@ def plot_predictions(dataset, length, model, loss_criterion=None, save=False):
     fig.tight_layout()
     plt.show()
     if save:
-        fig.savefig(os.path.join('.', 'plots', f'{server}_predictions_d{dataset}_l{length}.png'))
+        if loess_fit:
+            fig.savefig(os.path.join('.', 'plots', f'predictions_d{dataset}_l{length}_loess.png'))
+        else:
+            fig.savefig(os.path.join('.', 'plots', f'predictions_d{dataset}_l{length}.png'))
 
 
 if __name__ == '__main__':
     plot_part_results(save=True)
     plot_full_results(save=True)
-    plot_predictions(dataset=50, length=100, model='CNN', loss_criterion='RMSE', save=True)
-    plot_predictions(dataset=50, length=20, model='CNN', loss_criterion='RMSE', save=True)
-    # plot_predictions(dataset=50, length=100, model='SVR')
-    # plot_predictions(dataset=50, length=100, model='KNN')
-    # plot_predictions(dataset=50, length=100, model='RF')
-    # plot_predictions(dataset=50, length=100, model='XGB')
+    plot_predictions(dataset=50, length=100, model='CNN', loss_criterion='MAE', loess_fit=True, save=True)
+    plot_predictions(dataset=50, length=100, model='CNN', loss_criterion='MAE', loess_fit=False, save=True)
+    plot_predictions(dataset=50, length=20, model='CNN', loss_criterion='MAE', loess_fit=True, save=True)
+    plot_predictions(dataset=50, length=20, model='CNN', loss_criterion='MAE', loess_fit=False, save=True)
+    plot_predictions(dataset=20, length=100, model='CNN', loss_criterion='MAE', loess_fit=True, save=True)
+    plot_predictions(dataset=20, length=100, model='CNN', loss_criterion='MAE', loess_fit=False, save=True)
+    plot_predictions(dataset=20, length=20, model='CNN', loss_criterion='MAE', loess_fit=True, save=True)
+    plot_predictions(dataset=20, length=20, model='CNN', loss_criterion='MAE', loess_fit=False, save=True)
